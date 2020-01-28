@@ -10,12 +10,13 @@ import {
   Mixin,
   tagForObject,
   computed,
-  UNKNOWN_PROPERTY_TAG,
   getChainTagsForKey,
+  UNKNOWN_PROPERTY_TAG,
 } from '@ember/-internals/metal';
-import { setProxy } from '@ember/-internals/utils';
+import { setProxy, setupMandatorySetter } from '@ember/-internals/utils';
 import { assert } from '@ember/debug';
-import { combine, update } from '@glimmer/validator';
+import { DEBUG } from '@glimmer/env';
+import { combine, update, tagFor } from '@glimmer/validator';
 
 export function contentFor(proxy) {
   let content = get(proxy, 'content');
@@ -58,7 +59,16 @@ export default Mixin.create({
   }),
 
   [UNKNOWN_PROPERTY_TAG](key) {
-    return combine(getChainTagsForKey(this, `content.${key}`));
+    let tag = tagFor(this, key);
+
+    if (DEBUG) {
+      setupMandatorySetter(tag, this, key);
+
+      // TODO: Replace this with something more first class for tracking tags in DEBUG
+      tag._propertyKey = key;
+    }
+
+    return combine([tag, ...getChainTagsForKey(this, `content.${key}`)]);
   },
 
   unknownProperty(key) {
